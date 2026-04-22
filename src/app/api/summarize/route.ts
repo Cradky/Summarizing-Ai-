@@ -145,7 +145,7 @@ async function runRemoteSummary(text: string, points: number): Promise<SummaryRe
         {
           role: 'system',
           content:
-            'You summarize long text in your own words. Avoid quoting the source directly unless essential. Return ONLY valid JSON with keys "keyPoints" (array of concise paraphrased strings, no copied sentences) and "paragraph" (a longer synthesized summary of 4-6 sentences that combines the key points).',
+            'You summarize long text in your own words. For key points, capture one key idea per paragraph and prioritize first/last sentences in each paragraph, with extra attention to first and last paragraphs of the full text. Avoid quoting the source directly unless essential. Return ONLY valid JSON with keys "keyPoints" (array of concise paraphrased strings, no copied sentences) and "paragraph" (a longer synthesized summary of 4-6 sentences that combines the key points).',
         },
         {
           role: 'user',
