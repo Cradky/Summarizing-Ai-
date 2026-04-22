@@ -137,6 +137,7 @@ The app will turn it into short key points, with a simple chat-style experience.
 
 export function SummarizerChat() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const flashTimeoutRef = useRef<number | null>(null);
   const [input, setInput] = useState(starterText);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -150,6 +151,7 @@ export function SummarizerChat() {
   const [error, setError] = useState<string | null>(null);
   const [engine, setEngine] = useState<string>('waiting');
   const [sourceMessage, setSourceMessage] = useState<string>('');
+  const [sourceFlash, setSourceFlash] = useState(false);
 
   function jumpToSource(point: string) {
     const range = findBestSourceRange(input, point);
@@ -160,8 +162,26 @@ export function SummarizerChat() {
       return;
     }
 
+    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
     field.focus();
-    field.setSelectionRange(range.start, range.end);
+
+    // Selecting after scroll makes the source sentence visibly highlighted.
+    requestAnimationFrame(() => {
+      field.setSelectionRange(range.start, range.end);
+    });
+
+    setSourceFlash(false);
+    requestAnimationFrame(() => {
+      setSourceFlash(true);
+    });
+
+    if (flashTimeoutRef.current) {
+      window.clearTimeout(flashTimeoutRef.current);
+    }
+    flashTimeoutRef.current = window.setTimeout(() => {
+      setSourceFlash(false);
+    }, 1100);
+
     const preview = input.slice(range.start, range.end).replace(/\s+/g, ' ').trim();
     setSourceMessage(`Jumped to source: "${preview.slice(0, 120)}${preview.length > 120 ? '...' : ''}"`);
   }
@@ -263,6 +283,7 @@ export function SummarizerChat() {
           <textarea
             id="input"
             ref={inputRef}
+            className={sourceFlash ? 'source-active' : ''}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="Drop a long article, transcript, notes, or report here..."
