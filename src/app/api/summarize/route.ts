@@ -13,11 +13,49 @@ type SummaryResult = {
   paragraph: string;
 };
 
+const REWRITE_PREFIXES = [
+  'In simple terms,',
+  'Another way to say this is',
+  'Put differently,',
+  'In short,',
+  'The key idea is that',
+  'This also means that',
+];
+
 function parseBulletText(content: string): string[] {
   return content
     .split(/\n+/)
     .map((line) => line.replace(/^[-*•\d.\s]+/, '').trim())
     .filter(Boolean);
+}
+
+function simplifyPoint(point: string): string {
+  const cleaned = point
+    .replace(/^[•\-\d.\s]+/, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[;:]/g, ',')
+    .trim();
+
+  const firstClause = cleaned.split(',')[0]?.trim() ?? cleaned;
+  const normalized = firstClause.replace(/^that\s+/i, '').replace(/\.$/, '').trim();
+  return normalized || cleaned;
+}
+
+function rewriteKeyPointsInOwnWords(points: string[]): string[] {
+  const rewritten = points
+    .map((point, index) => {
+      const simplified = simplifyPoint(point);
+      if (!simplified) {
+        return '';
+      }
+
+      const prefix = REWRITE_PREFIXES[index % REWRITE_PREFIXES.length];
+      const body = simplified.charAt(0).toLowerCase() + simplified.slice(1);
+      return `${prefix} ${body}.`.replace(/\s+/g, ' ').trim();
+    })
+    .filter(Boolean);
+
+  return Array.from(new Set(rewritten));
 }
 
 function stripCodeFence(content: string): string {
@@ -72,9 +110,12 @@ function parseJsonSummary(content: string): SummaryResult | null {
       return null;
     }
 
+    const rewrittenPoints = rewriteKeyPointsInOwnWords(keyPoints);
+    const finalPoints = rewrittenPoints.length > 0 ? rewrittenPoints : keyPoints;
+
     return {
-      keyPoints,
-      paragraph: paragraph || paragraphFromPoints(keyPoints),
+      keyPoints: finalPoints,
+      paragraph: paragraph || paragraphFromPoints(finalPoints),
     };
   } catch {
     return null;
@@ -84,7 +125,7 @@ function parseJsonSummary(content: string): SummaryResult | null {
 async function runRemoteSummary(text: string, points: number): Promise<SummaryResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    const keyPoints = summarizeLocally(text, points);
+    const keyPoints = rewriteKeyPointsInOwnWords(summarizeLocally(text, points));
     return {
       keyPoints,
       paragraph: paragraphFromPoints(keyPoints),
@@ -115,7 +156,7 @@ async function runRemoteSummary(text: string, points: number): Promise<SummaryRe
   });
 
   if (!response.ok) {
-    const keyPoints = summarizeLocally(text, points);
+    const keyPoints = rewriteKeyPointsInOwnWords(summarizeLocally(text, points));
     return {
       keyPoints,
       paragraph: paragraphFromPoints(keyPoints),
@@ -132,7 +173,7 @@ async function runRemoteSummary(text: string, points: number): Promise<SummaryRe
 
   const content = payload.choices?.[0]?.message?.content?.trim();
   if (!content) {
-    const keyPoints = summarizeLocally(text, points);
+    const keyPoints = rewriteKeyPointsInOwnWords(summarizeLocally(text, points));
     return {
       keyPoints,
       paragraph: paragraphFromPoints(keyPoints),
@@ -145,10 +186,11 @@ async function runRemoteSummary(text: string, points: number): Promise<SummaryRe
   }
 
   const bulletPoints = parseBulletText(content);
-  const keyPoints = bulletPoints.length > 0 ? bulletPoints : summarizeLocally(text, points);
+  const rawPoints = bulletPoints.length > 0 ? bulletPoints : summarizeLocally(text, points);
+  const keyPoints = rewriteKeyPointsInOwnWords(rawPoints);
   return {
-    keyPoints,
-    paragraph: paragraphFromPoints(keyPoints),
+    keyPoints: keyPoints.length > 0 ? keyPoints : rawPoints,
+    paragraph: paragraphFromPoints(keyPoints.length > 0 ? keyPoints : rawPoints),
   };
 }
 
