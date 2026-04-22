@@ -247,6 +247,26 @@ main {
   box-shadow: 0 0 0 3px rgba(47, 104, 255, 0.18);
 }
 
+.source-preview {
+  border: 1px solid #d8e4f7;
+  border-radius: 12px;
+  background: #f4f9ff;
+  padding: 0.62rem 0.72rem;
+}
+
+.source-preview strong {
+  display: block;
+  font-size: 0.8rem;
+  color: #2f4d77;
+  margin-bottom: 0.26rem;
+}
+
+.source-preview p {
+  margin: 0;
+  line-height: 1.45;
+  background: linear-gradient(transparent 62%, rgba(47, 104, 255, 0.18) 62%);
+}
+
 .composer-footer {
   display: flex;
   justify-content: space-between;

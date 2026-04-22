@@ -20,6 +20,12 @@ type TextRange = {
   end: number;
 };
 
+type SourceMatch = {
+  snippet: string;
+  start: number;
+  end: number;
+};
+
 const COMMON_WORDS = new Set([
   'about',
   'after',
@@ -65,6 +71,13 @@ function termsFrom(text: string): string[] {
   );
 }
 
+function normalizeKeyPoint(point: string): string {
+  return point
+    .replace(/^(in simple terms,|another way to say this is|put differently,|in short,|the key idea is that|this also means that)\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function buildSentenceRanges(text: string): TextRange[] {
   const ranges: TextRange[] = [];
   const regex = /[^.!?\n][^.!?\n]*[.!?]?/g;
@@ -102,7 +115,8 @@ function overlapScore(haystack: string, terms: string[]): number {
 }
 
 function findBestSourceRange(text: string, keyPoint: string): TextRange | null {
-  const terms = termsFrom(keyPoint);
+  const normalizedPoint = normalizeKeyPoint(keyPoint);
+  const terms = termsFrom(normalizedPoint);
   if (terms.length === 0 || !text.trim()) {
     return null;
   }
@@ -137,6 +151,7 @@ The app will turn it into short key points, with a simple chat-style experience.
 
 export function SummarizerChat() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerRef = useRef<HTMLFormElement | null>(null);
   const flashTimeoutRef = useRef<number | null>(null);
   const [input, setInput] = useState(starterText);
   const [messages, setMessages] = useState<Message[]>([
@@ -151,7 +166,21 @@ export function SummarizerChat() {
   const [error, setError] = useState<string | null>(null);
   const [engine, setEngine] = useState<string>('waiting');
   const [sourceMessage, setSourceMessage] = useState<string>('');
-  const [sourceFlash, setSourceFlash] = useState(false);
+  const [sourceMatch, setSourceMatch] = useState<SourceMatch | null>(null);
+
+  function triggerSourceFlash(field: HTMLTextAreaElement) {
+    field.classList.remove('source-active');
+    void field.offsetWidth;
+    field.classList.add('source-active');
+
+    if (flashTimeoutRef.current) {
+      window.clearTimeout(flashTimeoutRef.current);
+    }
+
+    flashTimeoutRef.current = window.setTimeout(() => {
+      field.classList.remove('source-active');
+    }, 1200);
+  }
 
   function jumpToSource(point: string) {
     const range = findBestSourceRange(input, point);
@@ -159,31 +188,25 @@ export function SummarizerChat() {
 
     if (!range || !field) {
       setSourceMessage('Could not find a strong source match for this key point.');
+      setSourceMatch(null);
       return;
     }
 
-    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    field.focus();
+    composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Selecting after scroll makes the source sentence visibly highlighted.
-    requestAnimationFrame(() => {
+    window.setTimeout(() => {
+      field.focus();
       field.setSelectionRange(range.start, range.end);
-    });
-
-    setSourceFlash(false);
-    requestAnimationFrame(() => {
-      setSourceFlash(true);
-    });
-
-    if (flashTimeoutRef.current) {
-      window.clearTimeout(flashTimeoutRef.current);
-    }
-    flashTimeoutRef.current = window.setTimeout(() => {
-      setSourceFlash(false);
-    }, 1100);
+      triggerSourceFlash(field);
+    }, 220);
 
     const preview = input.slice(range.start, range.end).replace(/\s+/g, ' ').trim();
     setSourceMessage(`Jumped to source: "${preview.slice(0, 120)}${preview.length > 120 ? '...' : ''}"`);
+    setSourceMatch({
+      snippet: preview,
+      start: range.start,
+      end: range.end,
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -278,17 +301,22 @@ export function SummarizerChat() {
           <div className="chip">{engine}</div>
         </header>
 
-        <form className="composer card" onSubmit={handleSubmit}>
+        <form className="composer card" ref={composerRef} onSubmit={handleSubmit}>
           <label htmlFor="input">Input text</label>
           <textarea
             id="input"
             ref={inputRef}
-            className={sourceFlash ? 'source-active' : ''}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="Drop a long article, transcript, notes, or report here..."
             rows={15}
           />
+          {sourceMatch ? (
+            <div className="source-preview" aria-live="polite">
+              <strong>Matched source segment</strong>
+              <p>{sourceMatch.snippet}</p>
+            </div>
+          ) : null}
           <div className="composer-footer">
             <span>{input.trim().length.toLocaleString()} characters</span>
             <button type="submit" disabled={loading || !input.trim()}>
