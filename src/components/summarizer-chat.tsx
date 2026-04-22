@@ -3,7 +3,9 @@
 import { FormEvent, useState } from 'react';
 
 type SummaryResponse = {
-  summary: string[];
+  summary?: string[];
+  keyPoints?: string[];
+  paragraph?: string;
   provider: string;
   model: string;
 };
@@ -26,6 +28,7 @@ export function SummarizerChat() {
     },
   ]);
   const [summary, setSummary] = useState<string[]>([]);
+  const [paragraph, setParagraph] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [engine, setEngine] = useState<string>('waiting');
@@ -57,15 +60,19 @@ export function SummarizerChat() {
       }
 
       const payload = (await response.json()) as SummaryResponse;
-      const rendered = payload.summary.length > 0 ? payload.summary : ['No summary was returned.'];
+      const renderedPoints = payload.keyPoints ?? payload.summary ?? [];
+      const rendered = renderedPoints.length > 0 ? renderedPoints : ['No summary was returned.'];
+      const renderedParagraph =
+        payload.paragraph?.trim() || rendered.slice(0, 2).join(' ').replace(/\s+/g, ' ').trim() || 'No paragraph summary was returned.';
 
       setEngine(`${payload.provider} • ${payload.model}`);
       setSummary(rendered);
+      setParagraph(renderedParagraph);
       setMessages((current) => [
         ...current,
         {
           role: 'assistant',
-          content: rendered.map((point) => `• ${point}`).join('\n'),
+          content: `${renderedParagraph}\n\n${rendered.map((point) => `• ${point}`).join('\n')}`,
         },
       ]);
     } catch (cause) {
@@ -129,7 +136,7 @@ export function SummarizerChat() {
           <div className="composer-footer">
             <span>{input.trim().length.toLocaleString()} characters</span>
             <button type="submit" disabled={loading || !input.trim()}>
-              {loading ? 'Summarizing...' : 'Create key points'}
+              {loading ? 'Summarizing...' : 'Create summary'}
             </button>
           </div>
         </form>
@@ -152,19 +159,26 @@ export function SummarizerChat() {
 
         <section className="summary-card card">
           <div className="summary-card-header">
-            <h3>Key points</h3>
+            <h3>Paragraph + key points</h3>
             {summary.length > 0 ? <span>{summary.length} items</span> : <span>Waiting for text</span>}
           </div>
           {error ? (
             <p className="error">{error}</p>
           ) : summary.length > 0 ? (
-            <ul>
-              {summary.map((point, index) => (
-                <li key={`${point}-${index}`}>{point}</li>
-              ))}
-            </ul>
+            <>
+              <article className="paragraph-panel">
+                <h4>Short paragraph</h4>
+                <p>{paragraph}</p>
+              </article>
+              <h4 className="list-title">Key points</h4>
+              <ul>
+                {summary.map((point, index) => (
+                  <li key={`${point}-${index}`}>{point}</li>
+                ))}
+              </ul>
+            </>
           ) : (
-            <p className="placeholder">Run a summary and your top takeaways will appear here.</p>
+            <p className="placeholder">Run a summary and your paragraph + key takeaways will appear here.</p>
           )}
         </section>
       </div>

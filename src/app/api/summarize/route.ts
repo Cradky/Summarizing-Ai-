@@ -8,6 +8,11 @@ type RequestBody = {
   points?: number;
 };
 
+type SummaryResult = {
+  keyPoints: string[];
+  paragraph: string;
+};
+
 function parseBulletText(content: string): string[] {
   return content
     .split(/\n+/)
@@ -15,10 +20,59 @@ function parseBulletText(content: string): string[] {
     .filter(Boolean);
 }
 
-async function runRemoteSummary(text: string, points: number): Promise<string[]> {
+function stripCodeFence(content: string): string {
+  return content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+}
+
+function paragraphFromPoints(points: string[]): string {
+  const source = points
+    .slice(0, 3)
+    .map((point) => point.replace(/^[•\-\s]+/, '').trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!source) {
+    return 'No paragraph summary was generated.';
+  }
+
+  return source;
+}
+
+function parseJsonSummary(content: string): SummaryResult | null {
+  try {
+    const parsed = JSON.parse(stripCodeFence(content)) as {
+      keyPoints?: unknown;
+      paragraph?: unknown;
+    };
+
+    const keyPoints = Array.isArray(parsed.keyPoints)
+      ? parsed.keyPoints.map((item) => String(item).trim()).filter(Boolean)
+      : [];
+    const paragraph = typeof parsed.paragraph === 'string' ? parsed.paragraph.trim() : '';
+
+    if (keyPoints.length === 0 && !paragraph) {
+      return null;
+    }
+
+    return {
+      keyPoints,
+      paragraph: paragraph || paragraphFromPoints(keyPoints),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function runRemoteSummary(text: string, points: number): Promise<SummaryResult> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    return summarizeLocally(text, points);
+    const keyPoints = summarizeLocally(text, points);
+    return {
+      keyPoints,
+      paragraph: paragraphFromPoints(keyPoints),
+    };
   }
 
   const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
@@ -34,18 +88,22 @@ async function runRemoteSummary(text: string, points: number): Promise<string[]>
         {
           role: 'system',
           content:
-            'You summarize long text into concise key points. Return only a newline-separated list of bullets with no intro or closing line.',
+            'You summarize long text. Return ONLY valid JSON with keys "keyPoints" (array of concise strings) and "paragraph" (short 2-3 sentence summary).',
         },
         {
           role: 'user',
-          content: `Summarize the following text into ${points} concise key points:\n\n${text}`,
+          content: `Summarize the following text into ${points} concise key points and one short paragraph:\n\n${text}`,
         },
       ],
     }),
   });
 
   if (!response.ok) {
-    return summarizeLocally(text, points);
+    const keyPoints = summarizeLocally(text, points);
+    return {
+      keyPoints,
+      paragraph: paragraphFromPoints(keyPoints),
+    };
   }
 
   const payload = (await response.json()) as {
@@ -58,11 +116,24 @@ async function runRemoteSummary(text: string, points: number): Promise<string[]>
 
   const content = payload.choices?.[0]?.message?.content?.trim();
   if (!content) {
-    return summarizeLocally(text, points);
+    const keyPoints = summarizeLocally(text, points);
+    return {
+      keyPoints,
+      paragraph: paragraphFromPoints(keyPoints),
+    };
+  }
+
+  const parsedJson = parseJsonSummary(content);
+  if (parsedJson) {
+    return parsedJson;
   }
 
   const bulletPoints = parseBulletText(content);
-  return bulletPoints.length > 0 ? bulletPoints : summarizeLocally(text, points);
+  const keyPoints = bulletPoints.length > 0 ? bulletPoints : summarizeLocally(text, points);
+  return {
+    keyPoints,
+    paragraph: paragraphFromPoints(keyPoints),
+  };
 }
 
 export async function POST(request: Request) {
@@ -79,12 +150,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const summary = await runRemoteSummary(text, requestedPoints);
+    const result = await runRemoteSummary(text, requestedPoints);
 
     return Response.json({
       provider: process.env.OPENAI_API_KEY ? 'openai-compatible' : 'local-extractive',
       model: process.env.OPENAI_API_KEY ? OPENAI_MODEL : 'heuristic',
-      summary,
+      keyPoints: result.keyPoints,
+      paragraph: result.paragraph,
+      summary: result.keyPoints,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to summarize text.';

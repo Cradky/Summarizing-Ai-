@@ -362,6 +362,32 @@ main {
   gap: 0.56rem;
 }
 
+.paragraph-panel {
+  margin-bottom: 0.9rem;
+  border: 1px solid #d8e4f7;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 0.72rem 0.78rem;
+}
+
+.paragraph-panel h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #2f4d77;
+  letter-spacing: 0.02em;
+}
+
+.paragraph-panel p {
+  margin: 0.4rem 0 0;
+  line-height: 1.48;
+}
+
+.list-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.9rem;
+  color: #2f4d77;
+}
+
 .summary-card li {
   line-height: 1.47;
 }
