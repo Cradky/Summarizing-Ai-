@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 
 type SummaryResponse = {
   summary?: string[];
@@ -15,11 +15,128 @@ type Message = {
   content: string;
 };
 
+type TextRange = {
+  start: number;
+  end: number;
+};
+
+const COMMON_WORDS = new Set([
+  'about',
+  'after',
+  'also',
+  'because',
+  'between',
+  'could',
+  'first',
+  'from',
+  'have',
+  'into',
+  'just',
+  'more',
+  'most',
+  'other',
+  'over',
+  'same',
+  'should',
+  'some',
+  'than',
+  'that',
+  'their',
+  'there',
+  'these',
+  'they',
+  'this',
+  'those',
+  'through',
+  'under',
+  'very',
+  'what',
+  'when',
+  'where',
+  'which',
+  'while',
+  'with',
+  'would',
+]);
+
+function termsFrom(text: string): string[] {
+  return (text.toLowerCase().match(/[a-z0-9']+/g) ?? []).filter(
+    (word) => word.length > 3 && !COMMON_WORDS.has(word),
+  );
+}
+
+function buildSentenceRanges(text: string): TextRange[] {
+  const ranges: TextRange[] = [];
+  const regex = /[^.!?\n][^.!?\n]*[.!?]?/g;
+  let match = regex.exec(text);
+
+  while (match) {
+    const segment = match[0].trim();
+    if (segment.length >= 24) {
+      const rawStart = match.index;
+      const leadingWhitespace = match[0].search(/\S/);
+      const start = leadingWhitespace >= 0 ? rawStart + leadingWhitespace : rawStart;
+      const end = start + segment.length;
+      ranges.push({ start, end });
+    }
+    match = regex.exec(text);
+  }
+
+  return ranges;
+}
+
+function overlapScore(haystack: string, terms: string[]): number {
+  if (terms.length === 0) {
+    return 0;
+  }
+
+  const words = new Set(termsFrom(haystack));
+  let overlap = 0;
+  for (const term of terms) {
+    if (words.has(term)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap + overlap / terms.length;
+}
+
+function findBestSourceRange(text: string, keyPoint: string): TextRange | null {
+  const terms = termsFrom(keyPoint);
+  if (terms.length === 0 || !text.trim()) {
+    return null;
+  }
+
+  const ranges = buildSentenceRanges(text);
+  if (ranges.length === 0) {
+    return null;
+  }
+
+  let bestRange: TextRange | null = null;
+  let bestScore = 0;
+
+  for (const range of ranges) {
+    const candidate = text.slice(range.start, range.end);
+    const score = overlapScore(candidate, terms);
+    if (score > bestScore) {
+      bestScore = score;
+      bestRange = range;
+    }
+  }
+
+  if (!bestRange || bestScore <= 0) {
+    return null;
+  }
+
+  return bestRange;
+}
+
 const starterText = `Paste any long article, report, meeting notes, or research draft here.
 
 The app will turn it into short key points, with a simple chat-style experience.`;
 
 export function SummarizerChat() {
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [input, setInput] = useState(starterText);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -32,6 +149,22 @@ export function SummarizerChat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [engine, setEngine] = useState<string>('waiting');
+  const [sourceMessage, setSourceMessage] = useState<string>('');
+
+  function jumpToSource(point: string) {
+    const range = findBestSourceRange(input, point);
+    const field = inputRef.current;
+
+    if (!range || !field) {
+      setSourceMessage('Could not find a strong source match for this key point.');
+      return;
+    }
+
+    field.focus();
+    field.setSelectionRange(range.start, range.end);
+    const preview = input.slice(range.start, range.end).replace(/\s+/g, ' ').trim();
+    setSourceMessage(`Jumped to source: "${preview.slice(0, 120)}${preview.length > 120 ? '...' : ''}"`);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,6 +201,7 @@ export function SummarizerChat() {
       setEngine(`${payload.provider} • ${payload.model}`);
       setSummary(rendered);
       setParagraph(renderedParagraph);
+      setSourceMessage('Click a key point to jump to where it appears in your original text.');
       setMessages((current) => [
         ...current,
         {
@@ -128,6 +262,7 @@ export function SummarizerChat() {
           <label htmlFor="input">Input text</label>
           <textarea
             id="input"
+            ref={inputRef}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="Drop a long article, transcript, notes, or report here..."
@@ -171,9 +306,14 @@ export function SummarizerChat() {
                 <p>{paragraph}</p>
               </article>
               <h4 className="list-title">Key points</h4>
+              {sourceMessage ? <p className="source-message">{sourceMessage}</p> : null}
               <ul>
                 {summary.map((point, index) => (
-                  <li key={`${point}-${index}`}>{point}</li>
+                  <li key={`${point}-${index}`}>
+                    <button className="keypoint-link" type="button" onClick={() => jumpToSource(point)}>
+                      {point}
+                    </button>
+                  </li>
                 ))}
               </ul>
             </>

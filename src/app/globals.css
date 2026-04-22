@@ -392,6 +392,29 @@ main {
   line-height: 1.47;
 }
 
+.keypoint-link {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #d8e4f7;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #1a3151;
+  padding: 0.5rem 0.6rem;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.keypoint-link:hover {
+  border-color: #95b8ff;
+  background: #eef5ff;
+  transform: translateX(1px);
+}
+
+.source-message {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  color: #385883;
+}
+
 .placeholder {
   margin: 0;
   color: var(--muted);
