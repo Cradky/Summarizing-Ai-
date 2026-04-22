@@ -25,19 +25,35 @@ function stripCodeFence(content: string): string {
 }
 
 function paragraphFromPoints(points: string[]): string {
-  const source = points
-    .slice(0, 3)
-    .map((point) => point.replace(/^[•\-\s]+/, '').trim())
+  const cleaned = points
+    .map((point) => point.replace(/^[•\-\s]+/, '').replace(/\s+/g, ' ').trim())
     .filter(Boolean)
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .slice(0, 5);
 
-  if (!source) {
+  if (cleaned.length === 0) {
     return 'No paragraph summary was generated.';
   }
 
-  return source;
+  const first = `Overall, the text focuses on ${cleaned[0].charAt(0).toLowerCase()}${cleaned[0].slice(1)}.`;
+  const middle = cleaned
+    .slice(1, 4)
+    .map((point, index) => {
+      if (index === 0) {
+        return `It also explains that ${point.charAt(0).toLowerCase()}${point.slice(1)}.`;
+      }
+      if (index === 1) {
+        return `Another important takeaway is that ${point.charAt(0).toLowerCase()}${point.slice(1)}.`;
+      }
+      return `Finally, it underlines how ${point.charAt(0).toLowerCase()}${point.slice(1)}.`;
+    })
+    .join(' ');
+
+  const closing =
+    cleaned.length > 4
+      ? `Taken together, these points show that ${cleaned[4].charAt(0).toLowerCase()}${cleaned[4].slice(1)}.`
+      : 'Taken together, these ideas show the core message and why it matters.';
+
+  return [first, middle, closing].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function parseJsonSummary(content: string): SummaryResult | null {
@@ -88,11 +104,11 @@ async function runRemoteSummary(text: string, points: number): Promise<SummaryRe
         {
           role: 'system',
           content:
-            'You summarize long text. Return ONLY valid JSON with keys "keyPoints" (array of concise strings) and "paragraph" (short 2-3 sentence summary).',
+            'You summarize long text in your own words. Avoid quoting the source directly unless essential. Return ONLY valid JSON with keys "keyPoints" (array of concise paraphrased strings, no copied sentences) and "paragraph" (a longer synthesized summary of 4-6 sentences that combines the key points).',
         },
         {
           role: 'user',
-          content: `Summarize the following text into ${points} concise key points and one short paragraph:\n\n${text}`,
+          content: `Summarize the following text into ${points} key points rewritten in your own words and one longer paragraph that synthesizes those key points:\n\n${text}`,
         },
       ],
     }),
