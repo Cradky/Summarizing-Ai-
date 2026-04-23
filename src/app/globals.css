@@ -167,6 +167,7 @@ main {
     'composer conversation'
     'summary summary';
   gap: 0.8rem;
+  align-items: start;
 }
 
 .topbar {
@@ -219,6 +220,7 @@ main {
   padding: 0.84rem;
   display: grid;
   gap: 0.56rem;
+  align-content: start;
 }
 
 .composer label {
@@ -234,7 +236,11 @@ main {
   padding: 0.9rem;
   color: var(--text);
   background: var(--surface-alt);
-  resize: vertical;
+  min-height: 170px;
+  height: clamp(170px, 30vh, 250px);
+  max-height: 250px;
+  overflow-y: auto;
+  resize: none;
   line-height: 1.5;
 }
 
@@ -297,7 +303,7 @@ main {
   padding: 0.8rem;
   display: flex;
   flex-direction: column;
-  min-height: 340px;
+  min-height: 300px;
 }
 
 .conversation-header {

@@ -296,7 +296,7 @@ export function SummarizerChat() {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="Drop a long article, transcript, notes, or report here..."
-            rows={15}
+            rows={9}
           />
           {sourceMatch ? (
             <div className="source-preview" aria-live="polite">
