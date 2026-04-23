@@ -243,8 +243,9 @@ main {
 
 .composer textarea.source-active {
   animation: sourcePulse 1.05s ease;
-  border-color: #5f94ff;
-  box-shadow: 0 0 0 3px rgba(47, 104, 255, 0.18);
+  border-color: #DAA520;
+  box-shadow: 0 0 0 3px rgba(255, 200, 0, 0.35);
+  background-color: rgba(255, 250, 205, 0.4);
 }
 
 .source-preview {
@@ -465,13 +466,13 @@ main {
 
 @keyframes sourcePulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(47, 104, 255, 0.4);
+    box-shadow: 0 0 0 0 rgba(255, 200, 0, 0.6);
   }
   45% {
-    box-shadow: 0 0 0 6px rgba(47, 104, 255, 0.18);
+    box-shadow: 0 0 0 8px rgba(255, 200, 0, 0.25);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(47, 104, 255, 0);
+    box-shadow: 0 0 0 0 rgba(255, 200, 0, 0);
   }
 }
 
