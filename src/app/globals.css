@@ -303,7 +303,8 @@ main {
   padding: 0.8rem;
   display: flex;
   flex-direction: column;
-  min-height: 300px;
+  min-height: 210px;
+  max-height: 260px;
 }
 
 .conversation-header {
@@ -329,6 +330,7 @@ main {
   display: grid;
   gap: 0.55rem;
   padding-right: 0.28rem;
+  max-height: 180px;
 }
 
 .bubble {
