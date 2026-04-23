@@ -151,8 +151,6 @@ The app will turn it into short key points, with a simple chat-style experience.
 
 export function SummarizerChat() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const composerRef = useRef<HTMLFormElement | null>(null);
-  const flashTimeoutRef = useRef<number | null>(null);
   const [input, setInput] = useState(starterText);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -168,18 +166,11 @@ export function SummarizerChat() {
   const [sourceMessage, setSourceMessage] = useState<string>('');
   const [sourceMatch, setSourceMatch] = useState<SourceMatch | null>(null);
 
-  function triggerSourceFlash(field: HTMLTextAreaElement) {
-    field.classList.remove('source-active');
-    void field.offsetWidth;
-    field.classList.add('source-active');
-
-    if (flashTimeoutRef.current) {
-      window.clearTimeout(flashTimeoutRef.current);
-    }
-
-    flashTimeoutRef.current = window.setTimeout(() => {
-      field.classList.remove('source-active');
-    }, 1200);
+  function scrollSelectionIntoView(field: HTMLTextAreaElement, start: number) {
+    const lineHeight = parseFloat(window.getComputedStyle(field).lineHeight) || 24;
+    const before = field.value.slice(0, start);
+    const lineIndex = before.split('\n').length - 1;
+    field.scrollTop = Math.max(0, (lineIndex - 2) * lineHeight);
   }
 
   function jumpToSource(point: string) {
@@ -192,13 +183,9 @@ export function SummarizerChat() {
       return;
     }
 
-    composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    window.setTimeout(() => {
-      field.focus();
-      field.setSelectionRange(range.start, range.end);
-      triggerSourceFlash(field);
-    }, 220);
+    field.focus();
+    field.setSelectionRange(range.start, range.end);
+    scrollSelectionIntoView(field, range.start);
 
     const preview = input.slice(range.start, range.end).replace(/\s+/g, ' ').trim();
     setSourceMessage(`Jumped to source: "${preview.slice(0, 120)}${preview.length > 120 ? '...' : ''}"`);
@@ -301,7 +288,7 @@ export function SummarizerChat() {
           <div className="chip">{engine}</div>
         </header>
 
-        <form className="composer card" ref={composerRef} onSubmit={handleSubmit}>
+        <form className="composer card" onSubmit={handleSubmit}>
           <label htmlFor="input">Input text</label>
           <textarea
             id="input"
