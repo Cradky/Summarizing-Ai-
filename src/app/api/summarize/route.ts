@@ -13,6 +13,14 @@ type SummaryResult = {
   paragraph: string;
 };
 
+const KEY_POINT_LEAD_INS = [
+  'The text explains that',
+  'The passage shows that',
+  'This section highlights that',
+  'A key takeaway is that',
+  'The main idea is that',
+];
+
 function parseBulletText(content: string): string[] {
   return content
     .split(/\n+/)
@@ -44,7 +52,7 @@ function toSentenceCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function ensureClearSentence(point: string): string {
+function ensureClearSentence(point: string, index: number): string {
   const normalized = point.replace(/\s+/g, ' ').trim();
   if (!normalized) {
     return '';
@@ -57,18 +65,19 @@ function ensureClearSentence(point: string): string {
     return toSentenceCase(sentence);
   }
 
-  return `The text explains that ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}`;
+  const leadIn = KEY_POINT_LEAD_INS[index % KEY_POINT_LEAD_INS.length];
+  return `${leadIn} ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}`;
 }
 
 function rewriteKeyPointsInOwnWords(points: string[]): string[] {
   const rewritten = points
-    .map((point) => {
+    .map((point, index) => {
       const simplified = simplifyPoint(point);
       if (!simplified) {
         return '';
       }
 
-      return ensureClearSentence(simplified).replace(/\s+/g, ' ').trim();
+      return ensureClearSentence(simplified, index).replace(/\s+/g, ' ').trim();
     })
     .filter(Boolean);
 
