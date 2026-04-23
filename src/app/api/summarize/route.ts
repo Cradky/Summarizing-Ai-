@@ -13,15 +13,6 @@ type SummaryResult = {
   paragraph: string;
 };
 
-const REWRITE_PREFIXES = [
-  'In simple terms,',
-  'Another way to say this is',
-  'Put differently,',
-  'In short,',
-  'The key idea is that',
-  'This also means that',
-];
-
 function parseBulletText(content: string): string[] {
   return content
     .split(/\n+/)
@@ -33,25 +24,51 @@ function simplifyPoint(point: string): string {
   const cleaned = point
     .replace(/^[•\-\d.\s]+/, '')
     .replace(/\s+/g, ' ')
-    .replace(/[;:]/g, ',')
+    .replace(/["“”]/g, '')
     .trim();
 
-  const firstClause = cleaned.split(',')[0]?.trim() ?? cleaned;
-  const normalized = firstClause.replace(/^that\s+/i, '').replace(/\.$/, '').trim();
+  const firstSentence = cleaned.split(/(?<=[.!?])\s+/)[0]?.trim() ?? cleaned;
+  const normalized = firstSentence
+    .replace(/^(in simple terms|another way to say this is|put differently|in short|the key idea is that|this also means that)\s*,?\s*/i, '')
+    .replace(/^that\s+/i, '')
+    .replace(/[.!?]+$/, '')
+    .trim();
   return normalized || cleaned;
+}
+
+function toSentenceCase(value: string): string {
+  if (!value) {
+    return value;
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function ensureClearSentence(point: string): string {
+  const normalized = point.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  const hasEndingPunctuation = /[.!?]$/.test(normalized);
+  const sentence = hasEndingPunctuation ? normalized : `${normalized}.`;
+
+  if (/^(the|this|these|it|people|teams|organizations|research|results|data)\b/i.test(sentence)) {
+    return toSentenceCase(sentence);
+  }
+
+  return `The text explains that ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}`;
 }
 
 function rewriteKeyPointsInOwnWords(points: string[]): string[] {
   const rewritten = points
-    .map((point, index) => {
+    .map((point) => {
       const simplified = simplifyPoint(point);
       if (!simplified) {
         return '';
       }
 
-      const prefix = REWRITE_PREFIXES[index % REWRITE_PREFIXES.length];
-      const body = simplified.charAt(0).toLowerCase() + simplified.slice(1);
-      return `${prefix} ${body}.`.replace(/\s+/g, ' ').trim();
+      return ensureClearSentence(simplified).replace(/\s+/g, ' ').trim();
     })
     .filter(Boolean);
 
@@ -145,7 +162,7 @@ async function runRemoteSummary(text: string, points: number): Promise<SummaryRe
         {
           role: 'system',
           content:
-            'You summarize long text in your own words. For key points, capture one key idea per paragraph and prioritize first/last sentences in each paragraph, with extra attention to first and last paragraphs of the full text. Avoid quoting the source directly unless essential. Return ONLY valid JSON with keys "keyPoints" (array of concise paraphrased strings, no copied sentences) and "paragraph" (a longer synthesized summary of 4-6 sentences that combines the key points).',
+            'You summarize long text in your own words. For key points, capture one key idea per paragraph and prioritize first/last sentences in each paragraph, with extra attention to first and last paragraphs of the full text. Avoid quoting the source directly unless essential. Every key point must be a complete, grammatically correct sentence with one clear idea and no filler phrases. Return ONLY valid JSON with keys "keyPoints" (array of concise paraphrased sentences, no copied sentences) and "paragraph" (a longer synthesized summary of 4-6 sentences that combines the key points).',
         },
         {
           role: 'user',
