@@ -64,23 +64,24 @@ main {
 
 .app-shell {
   width: min(1280px, 94vw);
-  margin: 1.5rem auto;
+  margin: 0.9rem auto;
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
-  gap: 1rem;
+  gap: 0.8rem;
   align-items: start;
 }
 
 .sidebar {
-  min-height: calc(100vh - 3rem);
+  min-height: auto;
   border: 1px solid var(--border);
   border-radius: 24px;
   background: linear-gradient(165deg, #fefeff 0%, #eef4ff 82%);
   box-shadow: var(--shadow);
-  padding: 1.15rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 0.9rem;
 }
 
 .brand-tag {
@@ -137,6 +138,7 @@ main {
 }
 
 .sidebar-footer {
+  margin-top: 0.45rem;
   border-radius: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -164,7 +166,7 @@ main {
     'topbar topbar'
     'composer conversation'
     'summary summary';
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .topbar {
@@ -173,7 +175,7 @@ main {
   border-radius: 24px;
   background: linear-gradient(165deg, #ffffff 5%, #eff5ff 100%);
   box-shadow: var(--shadow);
-  padding: 1.1rem 1.3rem;
+  padding: 0.88rem 1.05rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -214,7 +216,7 @@ main {
 
 .composer {
   grid-area: composer;
-  padding: 1rem;
+  padding: 0.84rem;
   display: grid;
   gap: 0.56rem;
 }
@@ -292,10 +294,10 @@ main {
 
 .conversation {
   grid-area: conversation;
-  padding: 0.9rem;
+  padding: 0.8rem;
   display: flex;
   flex-direction: column;
-  min-height: 420px;
+  min-height: 340px;
 }
 
 .conversation-header {
@@ -356,7 +358,7 @@ main {
 
 .summary-card {
   grid-area: summary;
-  padding: 1rem;
+  padding: 0.84rem;
 }
 
 .summary-card-header {
